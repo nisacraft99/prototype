@@ -424,30 +424,32 @@ def render_sidebar():
         # US-25: role-based console and module visibility
         # Operations — Director + Manager (view only for Manager)
         if r in ["Director", "Manager"]:
-            st.markdown("<div class='console-header'>⚙️ Operations</div>", unsafe_allow_html=True)
-            label = "Strategic Meeting" if r == "Director" else "Strategic Meeting (view)"
-            if st.button(label, key="nav_sm"):
-                go("sm_dashboard")
+            with st.expander("⚙️ Operations", expanded=False):
+                label = "Strategic Meeting" if r == "Director" else "Strategic Meeting (view)"
+                if st.button(label, key="nav_sm", use_container_width=True):
+                    go("sm_dashboard")
 
         # Coordination — all roles
-        st.markdown("<div class='console-header'>🤝 Coordination</div>", unsafe_allow_html=True)
-        label_tm = "Team Meeting" if r == "Manager" else "Team Meeting (view)"
-        if st.button(label_tm, key="nav_tm"):
-            go("tm_dashboard")
+        with st.expander("🤝 Coordination", expanded=False):
+            label_tm = "Team Meeting" if r == "Manager" else "Team Meeting (view)"
+            if st.button(label_tm, key="nav_tm", use_container_width=True):
+                go("tm_dashboard")
 
         # Scheduling — all roles
-        st.markdown("<div class='console-header'>📅 Scheduling</div>", unsafe_allow_html=True)
-        if st.button("Calendar", key="nav_cal"):
-            go("calendar")
+        with st.expander("📅 Scheduling", expanded=False):
+            if st.button("Calendar", key="nav_cal", use_container_width=True):
+                go("calendar")
 
         # Performance — Director + Manager see Evaluate, Manager + Agent see My Evaluations
-        st.markdown("<div class='console-header'>📊 Performance</div>", unsafe_allow_html=True)
-        if r in ["Director", "Manager"]:
-            if st.button("Evaluate Employees", key="nav_eval"):
-                go("evaluate_dashboard")
-        if r in ["Manager", "Agent"]:
-            if st.button("My Evaluations", key="nav_myeval"):
-                go("my_evaluations")
+        with st.expander("📊 Performance", expanded=False):
+            if r in ["Director", "Manager"]:
+                if st.button("Evaluate Employees", key="nav_eval", use_container_width=True):
+                    go("evaluate_dashboard")
+            if r in ["Manager", "Agent"]:
+                if st.button("My Evaluations", key="nav_myeval", use_container_width=True):
+                    go("my_evaluations")
+            if r == "Director":
+                st.caption("My Evaluations not visible for Director.")
 
         st.markdown("---")
         if st.button("🏠 Home", key="nav_home"):
