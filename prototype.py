@@ -32,6 +32,8 @@ st.markdown("""
     border-radius:12px; font-weight:700; font-size:13px; display:inline-block; }
 .role-chip-Agent { background:#fff3e0; color:#e65100; padding:3px 10px;
     border-radius:12px; font-weight:700; font-size:13px; display:inline-block; }
+.role-chip-Admin { background:#f3e5f5; color:#6a1b9a; padding:3px 10px;
+    border-radius:12px; font-weight:700; font-size:13px; display:inline-block; }
 .cal-day { border: 1px solid #e0e0e0; border-radius: 6px; padding: 4px; min-height: 60px;
     background: white; margin: 2px; }
 .cal-today { border: 2px solid #1976d2 !important; }
@@ -335,11 +337,11 @@ def dlg_meeting_actions(meeting, mtype):
 
     # Accept / Decline (not Director for SM; not for TM by director)
     can_accept_decline = (
-        (r == "Manager" and mtype == "sm") or
-        (r == "Agent" and mtype == "tm")
+        (r in ["Manager", "Admin"] and mtype == "sm") or
+        (r in ["Agent", "Admin"] and mtype == "tm")
     )
     can_cancel = (
-        (r == "Director") or
+        r in ["Director", "Admin"] or
         (r == "Manager" and mtype == "tm")
     )
 
@@ -403,8 +405,8 @@ def render_sidebar():
         st.markdown(f"<div class='role-chip-{r}'>{r}</div>", unsafe_allow_html=True)
         st.markdown("---")
 
-        new_role = st.selectbox("Switch Role", ["Director", "Manager", "Agent"],
-                                 index=["Director", "Manager", "Agent"].index(r))
+        new_role = st.selectbox("Switch Role", ["Director", "Manager", "Agent", "Admin"],
+                                 index=["Director", "Manager", "Agent", "Admin"].index(r))
         if new_role != r:
             st.session_state.role = new_role
             st.session_state.screen = "home"
@@ -422,16 +424,16 @@ def render_sidebar():
         st.markdown("**NAVIGATION**")
 
         # US-25: role-based console and module visibility
-        # Operations — Director + Manager (view only for Manager)
-        if r in ["Director", "Manager"]:
+        # Operations — Director + Manager (view only for Manager) + Admin
+        if r in ["Director", "Manager", "Admin"]:
             with st.expander("⚙️ Operations", expanded=False):
-                label = "Strategic Meeting" if r == "Director" else "Strategic Meeting (view)"
+                label = "Strategic Meeting" if r in ["Director", "Admin"] else "Strategic Meeting (view)"
                 if st.button(label, key="nav_sm", use_container_width=True):
                     go("sm_dashboard")
 
         # Coordination — all roles
         with st.expander("🤝 Coordination", expanded=False):
-            label_tm = "Team Meeting" if r == "Manager" else "Team Meeting (view)"
+            label_tm = "Team Meeting" if r in ["Manager", "Admin"] else "Team Meeting (view)"
             if st.button(label_tm, key="nav_tm", use_container_width=True):
                 go("tm_dashboard")
 
@@ -440,12 +442,12 @@ def render_sidebar():
             if st.button("Calendar", key="nav_cal", use_container_width=True):
                 go("calendar")
 
-        # Performance — Director + Manager see Evaluate, Manager + Agent see My Evaluations
+        # Performance — Director + Manager see Evaluate, Manager + Agent + Admin see My Evaluations
         with st.expander("📊 Performance", expanded=False):
-            if r in ["Director", "Manager"]:
+            if r in ["Director", "Manager", "Admin"]:
                 if st.button("Evaluate Employees", key="nav_eval", use_container_width=True):
                     go("evaluate_dashboard")
-            if r in ["Manager", "Agent"]:
+            if r in ["Manager", "Agent", "Admin"]:
                 if st.button("My Evaluations", key="nav_myeval", use_container_width=True):
                     go("my_evaluations")
             if r == "Director":
@@ -458,7 +460,7 @@ def render_sidebar():
 # ====================== HOME ======================
 def show_home():
     r = role()
-    st.title("🏢 Welcome to User Management System (UMS)")
+    st.title("🏢 Welcome to UMS")
     st.markdown(f"<div class='role-chip-{r}' style='font-size:16px;padding:6px 16px'>{r}</div>",
                 unsafe_allow_html=True)
     st.markdown("")
@@ -471,6 +473,8 @@ def show_home():
                     "📅 Calendar (view, reschedule, accept/decline)", "📊 Evaluate Employees",
                     "📈 My Evaluations"],
         "Agent": ["👥 Team Meeting (view)", "📅 Calendar (view, accept/decline)", "📈 My Evaluations"],
+        "Admin": ["⚙️ Strategic Meeting (full access)", "👥 Team Meeting (full access)",
+                  "📅 Calendar (full access)", "📊 Evaluate Employees", "📈 My Evaluations"],
     }
     st.subheader("Your available modules")
     for m in module_map.get(r, []):
@@ -499,7 +503,7 @@ def show_sm_dashboard():
         if st.button("Reset", key="sm_reset"):
             st.session_state.sm_q = ""; st.session_state.sm_q_active = False; st.rerun()
 
-    if r == "Director":
+    if r in ["Director", "Admin"]:
         if st.button("➕ Create SM", type="primary"):
             dlg_create_sm()
     elif r == "Manager":
@@ -574,7 +578,7 @@ def show_sm_detail():
             else:
                 st.error("❌ You declined this meeting")
 
-    if r == "Director":
+    if r in ["Director", "Admin"]:
         bc1, bc2, bc3 = st.columns([1, 1, 1])
         with bc1:
             if st.button("✏️ Edit SM"):
@@ -590,7 +594,7 @@ def show_sm_detail():
 
     st.markdown("---")
     st.subheader("Actions")
-    if r == "Director":
+    if r in ["Director", "Admin"]:
         if st.button("➕ Add Action"):
             dlg_create_action(sm["id"], "sm")
     elif r == "Manager":
@@ -612,7 +616,7 @@ def show_sm_detail():
             ac_cols[1].write(ac["topic"])
             ac_cols[2].write(f"{URGENCY_ICON.get(ac['urgency'],'')} {ac['urgency']}")
             with ac_cols[3]:
-                if r == "Director":
+                if r in ["Director", "Admin"]:
                     e1, e2 = st.columns(2)
                     with e1:
                         if st.button("✏️", key=f"edit_ac_{ac['id']}"):
@@ -644,7 +648,7 @@ def show_action_detail():
     st.markdown(f"**Root Cause:** {ac['root_cause']}")
     st.markdown(f"**Action:** {ac['action']}")
 
-    can_edit = (mtype == "sm" and r == "Director") or (mtype == "tm" and r == "Manager")
+    can_edit = (mtype == "sm" and r in ["Director", "Admin"]) or (mtype == "tm" and r in ["Manager", "Admin"])
     if can_edit:
         e1, e2 = st.columns(2)
         with e1:
@@ -671,7 +675,7 @@ def show_tm_dashboard():
         if st.button("Reset", key="tm_reset"):
             st.session_state.tm_q = ""; st.session_state.tm_q_active = False; st.rerun()
 
-    if r == "Manager":
+    if r in ["Manager", "Admin"]:
         if st.button("➕ Create TM", type="primary"):
             dlg_create_tm()
     elif r in ["Director", "Agent"]:
@@ -748,7 +752,7 @@ def show_tm_detail():
             else:
                 st.error("❌ You declined this meeting")
 
-    if r == "Manager":
+    if r in ["Manager", "Admin"]:
         bc1, bc2, bc3 = st.columns([1, 1, 1])
         with bc1:
             if st.button("✏️ Edit TM"):
@@ -766,7 +770,7 @@ def show_tm_detail():
 
     st.markdown("---")
     st.subheader("Actions")
-    if r == "Manager":
+    if r in ["Manager", "Admin"]:
         if st.button("➕ Add Action"):
             dlg_create_action(tm["id"], "tm")
 
@@ -786,7 +790,7 @@ def show_tm_detail():
             ac_cols[1].write(ac["topic"])
             ac_cols[2].write(f"{URGENCY_ICON.get(ac['urgency'],'')} {ac['urgency']}")
             with ac_cols[3]:
-                if r == "Manager":
+                if r in ["Manager", "Admin"]:
                     e1, e2 = st.columns(2)
                     with e1:
                         if st.button("✏️", key=f"edit_tma_{ac['id']}"):
@@ -821,7 +825,7 @@ def show_calendar():
             st.session_state.cal_offset += 1; st.rerun()
 
     # US-20: Search other calendar
-    if r in ["Director", "Manager"]:
+    if r in ["Director", "Manager", "Admin"]:
         st.markdown("---")
         sc1, sc2 = st.columns([4, 1])
         with sc1:
@@ -894,11 +898,11 @@ def show_calendar():
                 day += 1
 
     # US-21: Reschedule (drag & drop simulation)
-    if r in ["Director", "Manager"]:
+    if r in ["Director", "Manager", "Admin"]:
         st.markdown("---")
         st.subheader("✋ Reschedule Meeting")
         all_meetings = []
-        if r == "Director":
+        if r in ["Director", "Admin"]:
             all_meetings += [(f"🔴 SM: {s['title']} ({s['id']})", s["id"], "sm") for s in st.session_state.sms]
             all_meetings += [(f"🔵 TM: {t['title']} ({t['id']})", t["id"], "tm") for t in st.session_state.tms]
         elif r == "Manager":
@@ -929,7 +933,7 @@ def show_evaluate_dashboard():
     st.title("📊 Evaluate Employees")
 
     # Director: location filter + search managers
-    if r == "Director":
+    if r in ["Director", "Admin"]:
         c1, c2, c3 = st.columns([2, 3, 1])
         with c1:
             loc_filter = st.selectbox("Filter by location", ["All"] + LOCATIONS)
