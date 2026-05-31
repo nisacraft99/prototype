@@ -458,7 +458,7 @@ def render_sidebar():
 # ====================== HOME ======================
 def show_home():
     r = role()
-    st.title("🏢 Welcome to UMS")
+    st.title("🏢 Moonie you so SEXYYYYYY YUMMY")
     st.markdown(f"<div class='role-chip-{r}' style='font-size:16px;padding:6px 16px'>{r}</div>",
                 unsafe_allow_html=True)
     st.markdown("")
