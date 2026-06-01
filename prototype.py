@@ -79,6 +79,7 @@ def init():
         "sm_q": "", "sm_q_active": False,
         "tm_q": "", "tm_q_active": False,
         "eval_results": [],
+        "eval_searched": False,
     }
     for k, v in defs.items():
         if k not in st.session_state:
@@ -932,62 +933,62 @@ def show_evaluate_dashboard():
     r = role()
     st.title("📊 Evaluate Employees")
 
-    # Build employee pool based on role
+    # ── Director: location filter + search bar + search button ──
     if r in ["Director", "Admin"]:
-        st.subheader("Evaluate a Manager")
-        c1, c2 = st.columns([2, 3])
+        c1, c2, c3 = st.columns([2, 3, 1])
         with c1:
-            loc_filter = st.selectbox("Filter by location", ["All"] + LOCATIONS, key="eval_loc")
+            loc_filter = st.selectbox("Location", ["All"] + LOCATIONS, key="eval_loc_filter")
         with c2:
-            search_q = st.text_input("🔍 Search by name", key="eval_search_q")
+            search_q = st.text_input("Search manager", key="eval_dir_q")
+        with c3:
+            st.markdown("<br>", unsafe_allow_html=True)
+            search_clicked = st.button("Search 🔍", key="eval_dir_search")
 
-        # Build pool live — no Search button needed
-        pool = []
-        for loc, ms in MANAGERS_BY_LOC.items():
-            if loc_filter == "All" or loc == loc_filter:
-                pool.extend(ms)
-        if search_q.strip():
-            pool = [p for p in pool if search_q.lower() in p.lower()]
+        if search_clicked:
+            pool = [
+                m for loc, ms in MANAGERS_BY_LOC.items()
+                for m in ms
+                if (loc_filter == "All" or loc == loc_filter)
+                and (not search_q.strip() or search_q.lower() in m.lower())
+            ]
+            st.session_state.eval_results = pool
+            st.session_state.eval_searched = True
 
-        if not pool:
-            st.info("No managers found.")
-        else:
-            hcols = st.columns([3, 2, 1])
-            for c, h in zip(hcols, ["Name", "Location", ""]): c.markdown(f"**{h}**")
-            st.markdown("---")
-            for emp in pool:
-                loc = next(l for l, ms in MANAGERS_BY_LOC.items() if emp in ms)
-                rc = st.columns([3, 2, 1])
-                rc[0].write(emp)
-                rc[1].write(loc)
-                with rc[2]:
-                    if st.button("Evaluate", key=f"eval_btn_{emp}"):
-                        go("evaluate_form", sel_employee=emp)
-
+    # ── Manager: search bar + search button (NO location filter) ──
     elif r == "Manager":
-        st.subheader("Evaluate an Agent")
-        search_q = st.text_input("🔍 Search by name", key="eval_search_q_mgr")
+        c1, c2 = st.columns([4, 1])
+        with c1:
+            search_q = st.text_input("Search agent", key="eval_mgr_q")
+        with c2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            search_clicked = st.button("Search 🔍", key="eval_mgr_search")
 
-        pool = [a for ag in AGENTS_BY_LOC.values() for a in ag]
-        if search_q.strip():
-            pool = [p for p in pool if search_q.lower() in p.lower()]
+        if search_clicked:
+            pool = [
+                a for ag in AGENTS_BY_LOC.values() for a in ag
+                if not search_q.strip() or search_q.lower() in a.lower()
+            ]
+            st.session_state.eval_results = pool
+            st.session_state.eval_searched = True
 
-        if not pool:
-            st.info("No agents found.")
+    # ── Results (appear only after Search was clicked) ──
+    if st.session_state.get("eval_searched"):
+        results = st.session_state.get("eval_results", [])
+        st.markdown("---")
+        if not results:
+            st.warning("No results found.")
         else:
-            hcols = st.columns([3, 2, 1])
-            for c, h in zip(hcols, ["Name", "Location", ""]): c.markdown(f"**{h}**")
-            st.markdown("---")
-            for emp in pool:
-                loc = next(l for l, ag in AGENTS_BY_LOC.items() if emp in ag)
-                rc = st.columns([3, 2, 1])
-                rc[0].write(emp)
-                rc[1].write(loc)
-                with rc[2]:
-                    if st.button("Evaluate", key=f"eval_btn_{emp}"):
+            st.markdown(f"**{len(results)} result(s):**")
+            for emp in results:
+                col_name, col_btn = st.columns([4, 1])
+                col_name.write(f"👤 {emp}")
+                with col_btn:
+                    if st.button("Evaluate →", key=f"eval_go_{emp}"):
+                        st.session_state.eval_searched = False
+                        st.session_state.eval_results = []
                         go("evaluate_form", sel_employee=emp)
 
-    # Evaluation list
+    # ── Evaluations created by me ──
     st.markdown("---")
     st.subheader("Evaluations Created by Me")
     evals = st.session_state.evaluations
