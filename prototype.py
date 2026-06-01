@@ -980,7 +980,11 @@ def show_evaluate_dashboard():
         st.markdown("---")
         for ev in evals:
             rc = st.columns([1, 3, 2])
-            rc[0].write(ev["id"]); rc[1].write(ev["employee"]); rc[2].write(ev["date"])
+            with rc[0]:
+                if st.button(ev["id"], key=f"ev_{ev['id']}"):
+                    go("eval_created_detail", sel_eval_id=ev["id"])
+            rc[1].write(ev["employee"])
+            rc[2].write(ev["date"])
 
 # ====================== EVALUATE FORM ======================
 def show_evaluate_form():
@@ -1072,6 +1076,32 @@ def show_my_eval_detail():
     else:
         st.warning("⏳ Appeal period expired (evaluation older than 1 week).")
 
+# ====================== EVALUATION CREATED DETAIL ======================
+def show_eval_created_detail():
+    eval_id = st.session_state.sel_eval_id
+    ev = next((e for e in st.session_state.evaluations if e["id"] == eval_id), None)
+    if not ev:
+        st.error("Evaluation not found.")
+        return
+
+    if st.button("← Back to Evaluate Employees"):
+        go("evaluate_dashboard")
+
+    st.title(f"📊 Evaluation {ev['id']}")
+    st.write(f"**Employee:** {ev['employee']}  |  **Date:** {ev['date']}")
+    st.markdown("---")
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Efficiency", f"{ev['efficiency']} / 5")
+    c2.metric("Reliability", f"{ev['reliability']} / 5")
+    c3.metric("Communication", f"{ev['communication']} / 5")
+    if ev.get("comment"):
+        st.markdown(f"**Comment:** {ev['comment']}")
+
+    if ev.get("appealed"):
+        st.warning("⚠️ This evaluation has been appealed.")
+
+
 # ====================== ROUTING ======================
 render_sidebar()
 
@@ -1086,6 +1116,7 @@ routes = {
     "calendar": show_calendar,
     "evaluate_dashboard": show_evaluate_dashboard,
     "evaluate_form": show_evaluate_form,
+    "eval_created_detail": show_eval_created_detail,
     "my_evaluations": show_my_evaluations,
     "my_eval_detail": show_my_eval_detail,
 }
